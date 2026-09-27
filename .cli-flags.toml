@@ -1,0 +1,88 @@
+[identity]
+service = "tkda-desktop-cli"
+type_name = "TkdaDesktopCliEnv"
+
+[help]
+url = "https://github.com/takoda-automation/tkda-desktop-cli"
+
+[parse]
+allow_unknown = false
+
+[env]
+ignore = [
+  "TKDA_LOCAL_CONTROL_TOKEN",
+  "TKDA_LOCAL_CONTROL_TOKEN_FILE"
+]
+
+[flags.command]
+env = "TKDA_DESKTOP_COMMAND"
+aliases = ["command"]
+type = "string"
+default = "status"
+help = "Command: status, doctor, run, get, cancel, keep-awake, apps, app-command."
+
+[flags.daemon-url]
+env = "TKDA_LOCAL_CONTROL_URL"
+aliases = ["daemon-url"]
+type = "string"
+default = "http://127.0.0.1:18087"
+help = "Authenticated loopback URL for tkda-desktop-daemon."
+
+[flags.run-id]
+env = "TKDA_RUN_ID"
+aliases = ["run-id"]
+type = "string"
+help = "Run UUID for get/cancel."
+
+[flags.prompt]
+env = "TKDA_PROMPT"
+aliases = ["prompt"]
+type = "string"
+help = "Automation prompt for a local run."
+
+[flags.language]
+env = "TKDA_WORKER_LANGUAGE"
+aliases = ["language"]
+type = "string"
+default = "typescript"
+help = "Worker language: typescript, python, rust, go."
+
+[flags.browser-engine]
+env = "TKDA_BROWSER_ENGINE"
+aliases = ["browser-engine"]
+type = "string"
+default = "playwright"
+help = "Browser engine: playwright, puppeteer, selenium."
+
+[flags.headed]
+env = "TKDA_HEADED"
+aliases = ["headed"]
+type = "boolean"
+default = false
+help = "Request a visible browser window."
+
+[flags.keep-awake]
+env = "TKDA_KEEP_AWAKE"
+aliases = ["keep-awake"]
+type = "boolean"
+default = false
+help = "Enable or disable the daemon power inhibitor."
+
+[flags.app]
+env = "TKDA_DESKTOP_APP"
+aliases = ["app"]
+type = "string"
+default = "any"
+help = "Desktop app selector: any, flutter, rust."
+
+[flags.app-action]
+env = "TKDA_DESKTOP_APP_ACTION"
+aliases = ["app-action"]
+type = "string"
+help = "Desktop UI action: focus, open_run, open_task, open_settings."
+
+[flags.app-target]
+env = "TKDA_DESKTOP_APP_TARGET"
+aliases = ["app-target"]
+type = "string"
+help = "Run/task target required by open_run/open_task."
