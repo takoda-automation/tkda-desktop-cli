@@ -67,7 +67,11 @@ impl DaemonClient {
             .json::<Value>()
             .unwrap_or_else(|_| json!({"error": "desktop daemon returned a non-JSON response"}));
         if !status.is_success() {
-            bail!("desktop daemon returned HTTP {}: {}", status.as_u16(), value);
+            bail!(
+                "desktop daemon returned HTTP {}: {}",
+                status.as_u16(),
+                value
+            );
         }
         return Ok(value);
     }
