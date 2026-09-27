@@ -17,3 +17,6 @@ uuid = { version = "1", features = ["v4"] }
 [lints.rust]
 unsafe_code = "deny"
 unused_must_use = "deny"
+
+[lints.clippy]
+needless_return = "allow"
