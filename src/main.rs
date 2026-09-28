@@ -91,8 +91,8 @@ fn validate_loopback_url(url: &Url) -> Result<()> {
     let host = url
         .host_str()
         .context("TKDA_LOCAL_CONTROL_URL is missing a host")?;
-    if !matches!(host, "127.0.0.1" | "localhost" | "::1") {
-        bail!("TKDA_LOCAL_CONTROL_URL must target loopback");
+    if !matches!(host, "127.0.0.1" | "::1") {
+        bail!("TKDA_LOCAL_CONTROL_URL must target literal 127.0.0.1 or ::1 loopback");
     }
     return Ok(());
 }
