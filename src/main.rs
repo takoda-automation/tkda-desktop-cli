@@ -65,7 +65,7 @@ impl DaemonClient {
         if let Some(body) = body {
             request = request.json(&body);
         }
-        let mut response = request.send().context("desktop daemon request failed")?;
+        let response = request.send().context("desktop daemon request failed")?;
         let status = response.status();
         if response
             .content_length()
