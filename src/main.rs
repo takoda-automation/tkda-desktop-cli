@@ -2,7 +2,7 @@
 
 mod flags;
 
-use std::{fs, time::Duration};
+use std::{fs, io::Read, path::Path, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use reqwest::{
@@ -14,6 +14,8 @@ use uuid::Uuid;
 
 const DEFAULT_DAEMON_URL: &str = "http://127.0.0.1:18087";
 const REQUIRED_ENGINES: [&str; 3] = ["playwright", "puppeteer", "selenium"];
+const MAX_DAEMON_RESPONSE_BYTES: usize = 1024 * 1024;
+const MAX_SECRET_FILE_BYTES: u64 = 16 * 1024;
 
 #[derive(Clone)]
 struct DaemonClient {
@@ -65,8 +67,21 @@ impl DaemonClient {
         }
         let response = request.send().context("desktop daemon request failed")?;
         let status = response.status();
-        let value = response
-            .json::<Value>()
+        if response
+            .content_length()
+            .is_some_and(|length| length > MAX_DAEMON_RESPONSE_BYTES as u64)
+        {
+            bail!("desktop daemon response exceeds {MAX_DAEMON_RESPONSE_BYTES} bytes");
+        }
+        let mut bytes = Vec::new();
+        response
+            .take(MAX_DAEMON_RESPONSE_BYTES as u64 + 1)
+            .read_to_end(&mut bytes)
+            .context("failed to read desktop daemon response")?;
+        if bytes.len() > MAX_DAEMON_RESPONSE_BYTES {
+            bail!("desktop daemon response exceeds {MAX_DAEMON_RESPONSE_BYTES} bytes");
+        }
+        let value = serde_json::from_slice::<Value>(&bytes)
             .unwrap_or_else(|_| json!({"error": "desktop daemon returned a non-JSON response"}));
         if !status.is_success() {
             bail!(
@@ -104,21 +119,44 @@ fn read_secret(
     min_len: usize,
     max_len: usize,
 ) -> Result<String> {
-    let raw = match env.get(inline_key) {
-        Some(value) => value.clone(),
-        None => {
-            let path = env
-                .get(file_key)
-                .with_context(|| format!("set {inline_key} or {file_key}"))?;
-            fs::read_to_string(path)
-                .with_context(|| format!("failed to read {file_key} at {path}"))?
+    let raw = match (env.get(inline_key), env.get(file_key)) {
+        (Some(_), Some(_)) => {
+            bail!("configure only one of {inline_key} or {file_key}");
         }
+        (Some(value), None) => value.clone(),
+        (None, Some(path)) => read_private_secret_file(Path::new(path), file_key)?,
+        (None, None) => bail!("set {inline_key} or {file_key}"),
     };
     let token = raw.trim();
     if token.len() < min_len || token.len() > max_len || token.chars().any(char::is_whitespace) {
         bail!("{inline_key} must contain {min_len}..={max_len} non-whitespace characters");
     }
     return Ok(token.to_owned());
+}
+
+fn read_private_secret_file(path: &Path, label: &str) -> Result<String> {
+    if !path.is_absolute() {
+        bail!("{label} must be an absolute path");
+    }
+    let metadata = fs::symlink_metadata(path)
+        .with_context(|| format!("failed to inspect {label} at {}", path.display()))?;
+    if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+        bail!("{label} must reference a regular non-symlink file");
+    }
+    if metadata.len() == 0 || metadata.len() > MAX_SECRET_FILE_BYTES {
+        bail!("{label} must be non-empty and no larger than {MAX_SECRET_FILE_BYTES} bytes");
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if metadata.permissions().mode() & 0o077 != 0 {
+            bail!("{label} must not be accessible by group/other users");
+        }
+    }
+
+    return fs::read_to_string(path)
+        .with_context(|| format!("failed to read {label} at {}", path.display()));
 }
 
 fn required<'a>(env: &'a flags::EnvMap, key: &str) -> Result<&'a str> {
@@ -310,6 +348,27 @@ mod tests {
     #[test]
     fn accepts_ipv4_loopback_daemon_url() {
         assert!(validate_loopback_url(&Url::parse(DEFAULT_DAEMON_URL).unwrap()).is_ok());
+    }
+
+    #[test]
+    fn rejects_ambiguous_control_token_sources() {
+        let env = flags::EnvMap::from([
+            ("TKDA_LOCAL_CONTROL_TOKEN".to_owned(), "a".repeat(32)),
+            (
+                "TKDA_LOCAL_CONTROL_TOKEN_FILE".to_owned(),
+                "/tmp/unused-token".to_owned(),
+            ),
+        ]);
+        assert!(
+            read_secret(
+                &env,
+                "TKDA_LOCAL_CONTROL_TOKEN",
+                "TKDA_LOCAL_CONTROL_TOKEN_FILE",
+                32,
+                4096,
+            )
+            .is_err()
+        );
     }
 
     #[test]
