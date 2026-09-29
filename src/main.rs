@@ -331,6 +331,17 @@ fn app_command_body(env: &flags::EnvMap) -> Result<Value> {
 }
 
 fn main() -> Result<()> {
+    if ores_clis_core::self_update::self_update_requested() {
+        ores_clis_core::self_update::run_self_update_cli(
+            ores_clis_core::self_update::SelfUpdateConfig::new(
+                "takoda-automation",
+                "tkda-desktop-cli",
+                "tkda-desktop-cli",
+                env!("CARGO_PKG_VERSION"),
+            ),
+        );
+    }
+
     let env = flags::apply_cli_flags().map_err(anyhow::Error::msg)?;
     let command = env
         .get("TKDA_DESKTOP_COMMAND")
