@@ -8,6 +8,7 @@ description = "Local operator CLI for tkda-desktop-daemon"
 [dependencies]
 anyhow = "1"
 flags2env = { git = "https://github.com/ORESoftware/flags-2-env.git", rev = "5a44d6a38f06c2765e80676618fd72bf4e59b984" }
+ores-clis-core = { git = "https://github.com/ORESoftware/ores-clis-core.git", rev = "a1dbba19330bd293a5df933baffd2028648dd59b" }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde_json = "1"
 tempfile = "3"
