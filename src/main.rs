@@ -138,25 +138,63 @@ fn read_private_secret_file(path: &Path, label: &str) -> Result<String> {
     if !path.is_absolute() {
         bail!("{label} must be an absolute path");
     }
-    let metadata = fs::symlink_metadata(path)
+    let admitted = fs::symlink_metadata(path)
         .with_context(|| format!("failed to inspect {label} at {}", path.display()))?;
-    if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+    if !admitted.file_type().is_file() || admitted.file_type().is_symlink() {
         bail!("{label} must reference a regular non-symlink file");
     }
-    if metadata.len() == 0 || metadata.len() > MAX_SECRET_FILE_BYTES {
+    if admitted.len() == 0 || admitted.len() > MAX_SECRET_FILE_BYTES {
         bail!("{label} must be non-empty and no larger than {MAX_SECRET_FILE_BYTES} bytes");
     }
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        if metadata.permissions().mode() & 0o077 != 0 {
+        if admitted.permissions().mode() & 0o077 != 0 {
             bail!("{label} must not be accessible by group/other users");
         }
     }
 
-    return fs::read_to_string(path)
-        .with_context(|| format!("failed to read {label} at {}", path.display()));
+    let file = fs::File::open(path)
+        .with_context(|| format!("failed to open {label} at {}", path.display()))?;
+    let opened = file
+        .metadata()
+        .with_context(|| format!("failed to inspect opened {label}"))?;
+    if !opened.is_file() || opened.len() == 0 || opened.len() > MAX_SECRET_FILE_BYTES {
+        bail!("{label} changed to an invalid file during admission");
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if admitted.dev() != opened.dev() || admitted.ino() != opened.ino() {
+            bail!("{label} changed between path admission and open");
+        }
+    }
+
+    let mut raw = String::new();
+    file.take(MAX_SECRET_FILE_BYTES + 1)
+        .read_to_string(&mut raw)
+        .with_context(|| format!("failed to read {label} at {}", path.display()))?;
+    if raw.len() as u64 > MAX_SECRET_FILE_BYTES {
+        bail!("{label} exceeds the {MAX_SECRET_FILE_BYTES}-byte policy limit");
+    }
+
+    let after = fs::symlink_metadata(path)
+        .with_context(|| format!("failed to re-inspect {label} at {}", path.display()))?;
+    if !after.file_type().is_file() || after.file_type().is_symlink() {
+        bail!("{label} changed after it was opened");
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if admitted.dev() != after.dev() || admitted.ino() != after.ino() {
+            bail!("{label} path identity changed while reading");
+        }
+    }
+
+    return Ok(raw);
 }
 
 fn required<'a>(env: &'a flags::EnvMap, key: &str) -> Result<&'a str> {
