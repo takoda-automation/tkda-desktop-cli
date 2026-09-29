@@ -155,7 +155,7 @@ fn read_private_secret_file(path: &Path, label: &str) -> Result<String> {
         }
     }
 
-    let mut file = fs::File::open(path)
+    let file = fs::File::open(path)
         .with_context(|| format!("failed to open {label} at {}", path.display()))?;
     let opened = file
         .metadata()
