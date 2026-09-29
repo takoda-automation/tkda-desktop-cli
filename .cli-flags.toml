@@ -14,12 +14,15 @@ ignore = [
   "TKDA_LOCAL_CONTROL_TOKEN_FILE"
 ]
 
+[commands.self-update]
+help = "Update tkda-desktop-cli using the shared ORES self-update path."
+
 [flags.command]
 env = "TKDA_DESKTOP_COMMAND"
 aliases = ["command"]
 type = "string"
 default = "status"
-help = "Command: status, doctor, run, get, cancel, keep-awake, apps, app-command."
+help = "Command: status, doctor, run, get, cancel, keep-awake, apps, app-command. `self-update` is handled as a dedicated top-level command."
 
 [flags.daemon-url]
 env = "TKDA_LOCAL_CONTROL_URL"
