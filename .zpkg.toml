@@ -1,0 +1,39 @@
+[package]
+org = "takoda-automation"
+name = "tkda-desktop-cli"
+version = "0.1.0"
+description = "Local operator CLI for tkda-desktop-daemon"
+license = "MIT"
+language = "rust"
+keywords = ["cli", "desktop", "automation", "rust", "global-tool"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/takoda-automation/tkda-desktop-cli"
+
+[dependencies]
+"oresoftware/ores-clis-core" = "^0.1.0"
+
+[build]
+command = "cargo build --release --bin tkda-desktop-cli"
+outputs = ["target/release/tkda-desktop-cli"]
+
+[bin]
+tkda-desktop-cli = "target/release/tkda-desktop-cli"
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -x \"$ZED_PKG_TEST_TARGET/target/release/tkda-desktop-cli\" && \"$ZED_PKG_TEST_TARGET/target/release/tkda-desktop-cli\" --help >/dev/null"
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", ".vendor/.zed/**", "target/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[scripts]
+test = "cargo test --all-targets"
+
+[metadata.reproducibility]
+locked = false
+block_promotion_until_cargo_lock = true
