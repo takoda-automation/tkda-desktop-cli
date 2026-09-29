@@ -14,6 +14,8 @@ url = "https://github.com/takoda-automation/tkda-desktop-cli"
 [dependencies]
 "oresoftware/ores-clis-core" = "^0.1.0"
 
+# Cargo.lock is not committed yet. Promotion remains blocked until a deterministic
+# lock is generated and these commands can be switched to --locked.
 [build]
 command = "cargo build --release --bin tkda-desktop-cli"
 outputs = ["target/release/tkda-desktop-cli"]
@@ -33,7 +35,3 @@ exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", ".vendor/.
 
 [scripts]
 test = "cargo test --all-targets"
-
-[metadata.reproducibility]
-locked = false
-block_promotion_until_cargo_lock = true
