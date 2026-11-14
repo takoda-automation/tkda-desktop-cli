@@ -209,6 +209,14 @@ fn bool_value(env: &flags::EnvMap, key: &str) -> bool {
     return env.get(key).map(String::as_str) == Some("true");
 }
 
+fn canonical_run_id(raw: &str) -> Result<&str> {
+    let id = Uuid::parse_str(raw).context("TKDA_RUN_ID must be a UUID")?;
+    if raw != id.to_string() {
+        bail!("TKDA_RUN_ID must use canonical lowercase hyphenated UUID form");
+    }
+    Ok(raw)
+}
+
 fn run_body(env: &flags::EnvMap) -> Result<Value> {
     let prompt = required(env, "TKDA_PROMPT")?.trim();
     if prompt.chars().count() > 50_000 {
@@ -355,12 +363,12 @@ fn main() -> Result<()> {
         "run" => client.json(Method::POST, "/v1/runs", Some(run_body(&env)?))?,
         "get" => {
             let run_id = required(&env, "TKDA_RUN_ID")?;
-            Uuid::parse_str(run_id).context("TKDA_RUN_ID must be a UUID")?;
+            canonical_run_id(run_id)?;
             client.json(Method::GET, &format!("/v1/runs/{run_id}"), None)?
         }
         "cancel" => {
             let run_id = required(&env, "TKDA_RUN_ID")?;
-            Uuid::parse_str(run_id).context("TKDA_RUN_ID must be a UUID")?;
+            canonical_run_id(run_id)?;
             client.json(
                 Method::POST,
                 &format!("/v1/runs/{run_id}/cancel"),
@@ -418,6 +426,20 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn run_ids_are_canonical_before_use_in_daemon_paths() {
+        let canonical = "11111111-1111-4111-8111-111111111111";
+        assert_eq!(canonical_run_id(canonical).unwrap(), canonical);
+        for invalid in [
+            "11111111111141118111111111111111",
+            "{11111111-1111-4111-8111-111111111111}",
+            "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
+            "../other",
+        ] {
+            assert!(canonical_run_id(invalid).is_err(), "{invalid}");
+        }
     }
 
     #[test]
