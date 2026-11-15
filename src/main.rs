@@ -128,8 +128,15 @@ fn read_secret(
         (None, None) => bail!("set {inline_key} or {file_key}"),
     };
     let token = raw.trim();
-    if token.len() < min_len || token.len() > max_len || token.chars().any(char::is_whitespace) {
-        bail!("{inline_key} must contain {min_len}..={max_len} non-whitespace characters");
+    if token.len() < min_len
+        || token.len() > max_len
+        || token
+            .chars()
+            .any(|ch| ch.is_whitespace() || ch.is_control())
+    {
+        bail!(
+            "{inline_key} must contain {min_len}..={max_len} characters without whitespace or controls"
+        );
     }
     return Ok(token.to_owned());
 }
@@ -418,6 +425,26 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn rejects_non_whitespace_control_characters_in_control_tokens() {
+        for control in ['\0', '\u{7f}', '\u{85}'] {
+            let env = flags::EnvMap::from([(
+                "TKDA_LOCAL_CONTROL_TOKEN".to_owned(),
+                format!("{}{}", "a".repeat(31), control),
+            )]);
+            assert!(
+                read_secret(
+                    &env,
+                    "TKDA_LOCAL_CONTROL_TOKEN",
+                    "TKDA_LOCAL_CONTROL_TOKEN_FILE",
+                    32,
+                    4096,
+                )
+                .is_err()
+            );
+        }
     }
 
     #[test]
