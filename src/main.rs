@@ -130,9 +130,13 @@ fn read_secret(
     let token = raw.trim();
     if token.len() < min_len
         || token.len() > max_len
-        || token.chars().any(|ch| ch.is_whitespace() || ch.is_control())
+        || token
+            .chars()
+            .any(|ch| ch.is_whitespace() || ch.is_control())
     {
-        bail!("{inline_key} must contain {min_len}..={max_len} characters without whitespace or controls");
+        bail!(
+            "{inline_key} must contain {min_len}..={max_len} characters without whitespace or controls"
+        );
     }
     return Ok(token.to_owned());
 }
